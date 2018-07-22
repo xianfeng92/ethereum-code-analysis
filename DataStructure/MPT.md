@@ -285,9 +285,6 @@ return n, original, nil
 注意到hash()和hashChildren()返回两个node类型对象，第一个@hash是入参n经过折叠的hashNode哈希值，第二个@cached是没有经过折叠的n，并且n的hashNode还被赋值了。
 
 
-## trie 的遍历和折叠原理
-
-
 
 
 
