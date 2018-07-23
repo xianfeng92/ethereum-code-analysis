@@ -1,4 +1,4 @@
-Ethereum 使用的Merkle-PatriciaTrie(MPT)结构，源自于Trie结构，又分别继承了PatriciaTrie和MerkleTree的优点.
+以太坊如Block，stateObject，StateDB等，均大量使用Merkle-PatriciaTrie(MPT)数据结构以组织和管理[k,v]型数据。利用MPT高效的分段哈希验证机制和灵活的节点(Node)插入/载入设计，调用方均可快速且高效的实现对数据的插入、删除、更新、压缩和加密。 Merkle-PatriciaTrie(MPT)结构，源自于Trie结构，又分别继承了PatriciaTrie和MerkleTree的优点.
 
 下面是Merkle Patricia Trie的数据结构:
 ```
