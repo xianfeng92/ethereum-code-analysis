@@ -64,6 +64,8 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 
 具体关系图如下所示：
 
+![](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/EthDBStructure.png)
+
 
 再来看一下stateObject对象：
 
@@ -103,6 +105,8 @@ type stateObject struct {
 ```
 每个stateObject对象管理着Ethereum世界里的一个“账户”。stateObject有一个成员变量data，类型是Accunt结构体，里面存有账户Ether余额，合约发起次数，最新发起合约指令集的哈希值，以及一个MPT结构的顶点哈希值。
 
+![](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/EthStateDB.png)
+
 Account 结构如下：
 ```
 // Account is the Ethereum consensus representation of accounts.
@@ -117,6 +121,7 @@ type Account struct {
 
 stateObject内部也有一个Trie类型的成员trie，被称为storage trie，它里面存放的是一种被称为State的数据。State跟每个账户相关，格式是[Hash, Hash]键值对。有意思的是，stateObject内部也有类似StateDB一样的二级数据缓存机制，用来缓存和更新这些State。
 
+![](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/StateObject.png)
 
 stateObject定义了一种类型名为storage的map结构，用来存放[]Hash,Hash]类型的数据对，也就是State数据。当SetState()调用发生时，storage内部State数据被更新，相应标示为"dirty"。之后，待有需要时(比如updateRoot()调用)，那些标为"dirty"的State数据被一起写入storage trie，而storage trie中的所有内容在CommitTo()调用时再一起提交到底层数据库。
 
