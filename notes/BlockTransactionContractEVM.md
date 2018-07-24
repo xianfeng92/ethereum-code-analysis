@@ -134,7 +134,7 @@ type txdata struct {
 
 为了防止交易重播，以太坊要求每笔交易必须有一个nonce值。每一个账户从同一个节点发起交易时，这个nonce值从0开始计数，发送一笔nonce对应加1。当前面的nonce处理完成之后才会处理后面的nonce。注意这里的前提条件是相同的地址在相同的节点发送交易。每个tx都声明了自己的(Gas)Price 和 GasLimit。Price指的是单位Gas消耗所折抵的Ether多少，它的高低意味着执行这个tx有多么昂贵。GasLimit 是该tx执行过程中所允许消耗资源的总上限，通过这个值，我们可以防止某个tx执行中出现恶意占用资源的问题，这也是Ethereum中有关安全保护的策略之一。拥有独立的Price和GasLimit, 也意味着每个tx之间都是相互独立的。Recipient 为转入方地址，为空是表明是在创建合约。Amount 转账金额；Payload是重要的数据成员，它既可以__作为所创建合约的指令数组__，其中每一个byte作为一个单独的虚拟机指令；也可以作为__数据数组__，由合约指令进行操作。合约由以太坊虚拟机(Ethereum Virtual Machine, EVM)创建并执行; R、S、V 为交易发起者的签名，代表交易发起者的身份。
 
-添加tx的方法：
+新建 tx 的方法：
 
 ```
 func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
@@ -164,11 +164,35 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 
 ```
 
+----------------------------------------------------------------------------
+
 ## Transaction Execute
 
 StateProcessor.ApplyTransaction()的具体实现，它的基本流程如下图：
 
 ![](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/ExecTx.png)
+
+ApplyTransaction()首先根据输入参数分别封装出一个Message对象和一个EVM对象，然后加上一个传入的GasPool类型变量，由TransitionDb()函数完成tx的执行，待TransitionDb()返回之后，创建一个收据Receipt对象，最后返回该Recetip对象，以及整个tx执行过程所消耗Gas数量。
+
+GasPool对象是在一个Block执行开始时创建，并在该Block内所有tx的执行过程中共享，对于一个tx的执行可视为“全局”存储对象； Message由此次待执行的tx对象转化而来，并携带了解析出的tx的(转帐)转出方地址，属于待处理的数据对象；EVM 作为Ethereum世界里的虚拟机(Virtual Machine)，作为此次tx的实际执行者，完成转帐和合约(Contract)的相关操作。
+
+我们来细看下TransitioinDb()的执行过程(/core/state_transition.go)。假设有StateTransition对象st, 其成员变量initialGas表示初始可用Gas数量，gas表示即时可用Gas数量，初始值均为0，于是st.TransitionDb() 可由以下步骤展开：
+
+* 购买Gas。首先从交易的(转帐)转出方账户扣除一笔Ether，费用等于tx.data.GasLimit * tx.data.Price；同时 st.initialGas = st.gas = tx.data.GasLimit；然后(GasPool) gp -= st.gas。
+
+* 计算tx的固有Gas消耗(intrinsicGas)。它分为两个部分，每一个tx预设的消耗量，这个消耗量还因tx是否含有(转帐)转入方地址而略有不同；以及针对tx.data.Payload的Gas消耗，Payload类型是[]byte，关于它的固有消耗依赖于[]byte中非0字节和0字节的长度。最终，st.gas -= intrinsicGas
+
+* EVM执行。如果交易的(转帐)转入方地址(tx.data.Recipient)为空，调用EVM的Create()函数；否则，调用Call()函数。无论哪个函数返回后，更新st.gas。
+计算本次执行交易的实际Gas消耗： requiredGas = st.initialGas - st.gas
+
+* 偿退Gas。它包括两个部分：首先将剩余st.gas 折算成Ether，归还给交易的(转帐)转出方账户；然后，基于实际消耗量requiredGas，系统提供一定的补偿，数量为refundGas。refundGas 所折算的Ether会被立即加在(转帐)转出方账户上，同时st.gas += refundGas，gp += st.gas，即剩余的Gas加上系统补偿的Gas，被一起归并进GasPool，供之后的交易执行使用。
+
+* 奖励所属区块的挖掘者：系统给所属区块的作者，亦即挖掘者账户，增加一笔金额，数额等于 st.data,Price * (st.initialGas - st.gas)。注意，这里的st.gas在步骤5中被加上了refundGas, 所以这笔奖励金所对应的Gas，其数量小于该交易实际消耗量requiredGas。
+
+
+-----------------------------------------------------------------------------
+
+## Transaction Execute 的具体代码实现
 
 ### StateProcessor
 
@@ -183,7 +207,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		usedGas  = new(uint64)
 		header   = block.Header()
 		allLogs  []*types.Log
-		gp       = new(GasPool).AddGas(block.GasLimit()) // GasPol 跟踪在Block 中执行 tx 期间可用的 gas， 即一个 Block 中最多可以消耗多少 gas
+		gp       = new(GasPool).AddGas(block.GasLimit()) // GasPol 跟踪在Block 中执行 tx 期间可用的 gas， 即一个 Block 中最多可以消耗多少gas
 	)
 	// Mutate the the block and state according to any hard-fork specs
 	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
@@ -206,8 +230,8 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 }
 ```
 
-先来看看 Receipts 的结构：
 
+Receipts 的结构：
 ```
 // Receipt represents the results of a transaction.
 type Receipt struct {
@@ -225,10 +249,9 @@ type Receipt struct {
 }
 ```
 
-PostState 存储了创建该Receipt对象时，整个Block内所有“帐户”的状态，即当时所在Block里所有stateObject对象的 RLP Hash值；Receipt 中有一个Log类型的数组，其中每一个Log对象记录了Tx中一小步的操作。这里Bloom，被用以验证某个给定的Log是否处于Receipt已有的Log数组中。
+其中，PostState 存储了创建该Receipt对象时，整个Block内所有“帐户”的状态，即当时所在Block里所有stateObject对象的 RLP Hash值；Receipt 中有一个Log类型的数组，其中每一个Log对象记录了Tx中一小步的操作。这里Bloom，被用以验证某个给定的Log是否处于Receipt已有的Log数组中。
 
-具体Log结构如下：
-
+Log结构如下：
 ```
 // Log represents a contract log event. These events are generated by the LOG opcode and
 // stored/indexed by the node.
@@ -259,7 +282,6 @@ type Log struct {
 	Removed bool `json:"removed"`
 }
 ```
-
 每一个tx的执行结果，__由一个Receipt对象来表示__；更具体一点，是由一组Log对象来记录。这个Log数组很重要，比如在不同Ethereum节点(Node)的相互同步过程中，待同步区块的Log数组有助于验证同步中收到的block是否正确和完整，所以会被单独同步(传输)。
 
 
@@ -311,8 +333,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 ```
 
-看看 AsMessage:
-
+AsMessage:
 ```
 // AsMessage 将 tx 封装成一个core.Message.
 // AsMessage 需要一个签名去提取 the sender.
@@ -347,7 +368,6 @@ ApplyMessage 中创建一个新的StateTransition，然后传入 TransitionDb �
 
 
 先看看StateTransition：
-
 ```
 /*
 The State Transitioning Model（状态转换模型）
@@ -380,7 +400,6 @@ type StateTransition struct {
 ```
 
 TransitionDb函数：
-
 ```
  // TransitionDb 通过 message 的执行来改变账户状态
 // 返回 usedGas 以及 是否成功执行 tx
@@ -434,8 +453,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 ```
 
-先看看 IntrinsicGas 函数：
-
+IntrinsicGas 函数：
 ```
 // IntrinsicGas 计算 message 中携带的 data （tx.data.Payload） 所需付的 gas
 func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error) {
@@ -473,8 +491,7 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error)
 ```
 
 
-再看看 refundGas 函数：
-
+refundGas 函数：
 ```
 func (st *StateTransition) refundGas() {
 	// gas的退回
