@@ -166,8 +166,9 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 
 ## Transaction Execute
 
+StateProcessor.ApplyTransaction()的具体实现，它的基本流程如下图：
 
-
+![](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/ExecTx.png)
 
 ### StateProcessor
 
