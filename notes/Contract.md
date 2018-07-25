@@ -1,4 +1,4 @@
-## Contract Create
+## Contract
 
 合约(Contract)是EVM用来执行(虚拟机)指令的结构体。先来看下Contract的定义：
 
@@ -44,3 +44,21 @@ type Contract struct {
 ```
 
 其中， caller tx 的发起者，即转账转出方， self 为转入方地址，它们的类型都是用接口 ContractRef 来表示的。Code 为指令数组，其中每一个byte都对应于一个__预定义的虚拟机指令__。CodeHash 是 Code 的RLP哈希值。Input是数据数组，是指令所操作的数据集合。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

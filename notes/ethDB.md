@@ -1,6 +1,6 @@
-##  StateDB
+## StateDB
 
-StateDB有一个trie.Trie类型成员trie，它又被称为storage trie，这个MPT结构中存储的都是stateObject对象，每个stateObject对象以其地址作为插入节点的Key。
+[StateDB](https://github.com/xianfeng92/go-ethereum/blob/master/core/state/statedb.go)有一个trie.Trie类型成员trie，它又被称为storage trie，这个MPT结构中存储的都是stateObject对象，每个stateObject对象以其地址作为插入节点的Key。
 
 StateDB结构定义如下：
 ```
