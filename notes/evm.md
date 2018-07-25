@@ -1,6 +1,99 @@
 ## EVM
 
-### call
+
+### Create
+
+#### 转账和合约创建 （当 tx 的 to == nil）：
+
+*  core/vm/[evm.go](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/evm.go)
+
+```
+// Create creates a new contract using code as deployment code.
+// parameter caller:tx 发起者  code：指令数组  value：转账金额
+// return contractAddr:合约地址 leftOverGas:剩余gas
+func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+
+	// Depth check execution. Fail if we're trying to execute above the limit.
+	if evm.depth > int(params.CallCreateDepth) { // CallCreateDepth ==  1024  调用/创建堆栈的最大深度
+		return nil, common.Address{}, gas, ErrDepth
+	}
+	if !evm.CanTransfer(evm.StateDB, caller.Address(), value) { // 余额是否充足
+		return nil, common.Address{}, gas, ErrInsufficientBalance
+	}
+	// Ensure there's no existing contract already at the designated address
+	nonce := evm.StateDB.GetNonce(caller.Address())
+	evm.StateDB.SetNonce(caller.Address(), nonce+1)
+
+	contractAddr = crypto.CreateAddress(caller.Address(), nonce) // 生成合约地址
+	contractHash := evm.StateDB.GetCodeHash(contractAddr)
+	if evm.StateDB.GetNonce(contractAddr) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
+		return nil, common.Address{}, 0, ErrContractAddressCollision
+	}
+	// Create a new account on the state
+	snapshot := evm.StateDB.Snapshot()
+	evm.StateDB.CreateAccount(contractAddr) // 生成一个合约账户
+	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
+		evm.StateDB.SetNonce(contractAddr, 1)
+	}
+	evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value) // 转账
+
+	// initialise a new contract and set the code that is to be used by the
+	// EVM. The contract is a scoped environment for this execution context
+	// only.
+	contract := NewContract(caller, AccountRef(contractAddr), value, gas)
+	contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code) // 初始化一个合约，并设置其 code（指令数组）
+
+	if evm.vmConfig.NoRecursion && evm.depth > 0 {
+		return nil, contractAddr, gas, nil
+	}
+
+	if evm.vmConfig.Debug && evm.depth == 0 {
+		evm.vmConfig.Tracer.CaptureStart(caller.Address(), contractAddr, true, code, gas, value)
+	}
+	start := time.Now()
+
+	ret, err = run(evm, contract, nil) // 执行 tx 中的合约调用
+
+	// check whether the max code size has been exceeded
+	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
+	// if the contract creation ran successfully and no errors were returned
+	// calculate the gas required to store the code. If the code could not
+	// be stored due to not enough gas set an error and let it be handled
+	// by the error checking condition below.
+	if err == nil && !maxCodeSizeExceeded {
+		createDataGas := uint64(len(ret)) * params.CreateDataGas
+		if contract.UseGas(createDataGas) {
+			evm.StateDB.SetCode(contractAddr, ret)
+		} else {
+			err = ErrCodeStoreOutOfGas
+		}
+	}
+
+	// When an error was returned by the EVM or when setting the creation code
+	// above we revert to the snapshot and consume any gas remaining. Additionally
+	// when we're in homestead this also counts for code storage gas errors.
+	if maxCodeSizeExceeded || (err != nil && (evm.ChainConfig().IsHomestead(evm.BlockNumber) || err != ErrCodeStoreOutOfGas)) {
+		evm.StateDB.RevertToSnapshot(snapshot)
+		if err != errExecutionReverted {
+			contract.UseGas(contract.Gas)
+		}
+	}
+	// Assign err if contract code size exceeds the max while the err is still empty.
+	if maxCodeSizeExceeded && err == nil {
+		err = errMaxCodeSizeExceeded
+	}
+	if evm.vmConfig.Debug && evm.depth == 0 {
+		evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
+	}
+	return ret, contractAddr, contract.Gas, err
+}
+```
+
+-----------------------------------------------------------------------------------
+
+### Call
+
+#### 转账和合约调用（当 tx 的 to != nil）：
 
 * core/vm/[evm.go](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/evm.go)
 

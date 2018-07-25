@@ -102,7 +102,34 @@ type stateObject struct {
 	deleted   bool
 }
 
+// StateDB 提供方法SetCode()，可以将指令数组Code存储在某个stateObject对象中;方法GetCode()，可以从某个stateObject对象中读取已有的指令数组Code。
+func (self *StateDB) GetCode(addr common.Address) []byte {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.Code(self.db)
+	}
+	return nil
+}
+
+
+func (self *StateDB) GetCodeSize(addr common.Address) int {
+	stateObject := self.getStateObject(addr)
+	if stateObject == nil {
+		return 0
+	}
+	if stateObject.code != nil {
+		return len(stateObject.code)
+	}
+	size, err := self.db.ContractCodeSize(stateObject.addrHash, common.BytesToHash(stateObject.CodeHash()))
+	if err != nil {
+		self.setError(err)
+	}
+	return size
+}
+
 ```
+
+
 每个stateObject对象管理着Ethereum世界里的一个“账户”。stateObject有一个成员变量data，类型是Accunt结构体，里面存有账户Ether余额，合约发起次数，最新发起合约指令集的哈希值，以及一个MPT结构的顶点哈希值。
 
 ![](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/EthStateDB.png)
@@ -125,7 +152,7 @@ stateObject内部也有一个Trie类型的成员trie，被称为storage trie，�
 
 stateObject定义了一种类型名为storage的map结构，用来存放[]Hash,Hash]类型的数据对，也就是State数据。当SetState()调用发生时，storage内部State数据被更新，相应标示为"dirty"。之后，待有需要时(比如updateRoot()调用)，那些标为"dirty"的State数据被一起写入storage trie，而storage trie中的所有内容在CommitTo()调用时再一起提交到底层数据库。
 
-
+__StateDB 并不是真正的数据库，只是一行为类似数据库的结构体。它在内部以Trie的数据结构来管理各个基于地址的账户，可以理解成一个cache；当该账户的信息有变化时，变化先存储在Trie中。仅当整个Block要被插入到BlockChain时，StateDB 里缓存的所有账户的所有改动，才会被真正的提交到底层数据库__。
 
 
 

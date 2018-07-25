@@ -29,7 +29,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err er
 		op    OpCode        // 当前操作码
 		mem   = NewMemory() // 绑定内存
 		stack = newstack()  // 本地栈
-		// 为了优化原因，我们使用 UIT64 作为程序计数器。
+		// 为了优化，我们使用 UIT64 作为程序计数器。
 		// It's theoretically possible to go above 2^64. The YP defines the PC
 		// to be uint256. Practically much less so feasible.
 		pc   = uint64(0) // program counter
