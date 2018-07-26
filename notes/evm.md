@@ -3,7 +3,7 @@
 
 ### Create
 
-#### 转账和合约创建 （当 tx 的 to == nil）：
+#### 合约创建 （当 tx 的 to == nil）：
 
 *  core/vm/[evm.go](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/evm.go)
 
@@ -35,7 +35,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
 	}
-	evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value) // 转账
+	evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value) // 向合约地址转账
 
 	// initialise a new contract and set the code that is to be used by the
 	// EVM. The contract is a scoped environment for this execution context
@@ -93,7 +93,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 
 ### Call
 
-#### 转账和合约调用（当 tx 的 to != nil）：
+#### 合约调用（当 tx 的 to != nil）：
 
 * core/vm/[evm.go](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/evm.go)
 
@@ -138,7 +138,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// 初始化一个新的 contract 并设置 EVM 要使用的 code
 	// 该 contract 仅作用于此执行 context 的范围环境
 	contract := NewContract(caller, to, value, gas)
-	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
+	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr)) // evm.StateDB.GetCode(addr) 取出合约地址中的 指令数组（code）
 
 	start := time.Now()
 
@@ -150,7 +150,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
 		}()
 	}
-	ret, err = run(evm, contract, input)
+	ret, err = run(evm, contract, input) // 调用合约： input为合约的入参
 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
