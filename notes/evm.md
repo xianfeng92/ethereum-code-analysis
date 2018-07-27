@@ -35,7 +35,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
 	}
-	evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value) // 向合约地址转账
+	evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value) // 转入账户 contractAddr, 转出账户 caller.Address()
 
 	// initialise a new contract and set the code that is to be used by the
 	// EVM. The contract is a scoped environment for this execution context
@@ -137,8 +137,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 	// 初始化一个新的 contract 并设置 EVM 要使用的 code
 	// 该 contract 仅作用于此执行 context 的范围环境
-	contract := NewContract(caller, to, value, gas)
-	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr)) // evm.StateDB.GetCode(addr) 取出合约地址中的 指令数组（code）
+	contract := NewContract(caller, to, value, gas) //创建一个Contract对象，并初始化其成员变量caller, to, value 和 gas
+	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr)) // 赋值Contract对象的Code, CodeHash, CodeAddr成员变量。其中 evm.StateDB.GetCode(addr) 取出合约地址中的 指令数组（code）  
 
 	start := time.Now()
 
@@ -150,7 +150,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
 		}()
 	}
-	ret, err = run(evm, contract, input) // 调用合约： input为合约的入参
+	ret, err = run(evm, contract, input) // 调用run()函数执行该合约的指令，input为调用合约的参数
 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
@@ -207,3 +207,30 @@ func Transfer(db vm.StateDB, sender, recipient common.Address, amount *big.Int) 
 }
 
 ```
+
+## 小结
+
+evm.go中的Call()和Create()函数：
+
+* Call:
+
+> ret, err = run(evm, contract, input)
+
+* Create:
+
+> ret, err = run(evm, contract, nil)
+
+
+Call() 有一个入参input类型为[]byte，而Create()有一个入参code类型同样为[]byte，没有入参input. 这两个[]byte都是Transaction对象tx的成员变量Payload！调用EVM.Create()或Call()的入口在StateTransition.TransitionDb()中， 当tx.Recipent为空时，tx.data.Payload 被当作所创建Contract的Code(创建合约)；当tx.Recipient 不为空时，tx.data.Payload 被当作Contract的Input（合约调用）。
+
+关于[run](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/interpreter.md)
+
+
+
+
+
+
+
+
+
+
