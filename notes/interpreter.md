@@ -1,7 +1,45 @@
 ## interpreter
 
+解释器 [interpreter](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/interpreter.go)用来执行(非预编译的)合约指令。
 
-Contract的执行:[interpreter](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/interpreter.go)
+---------------------------------------------------
+
+Interpreter结构体通过一个Config类型的成员变量，间接持有一个包括256个operation对象在内的数组JumpTable。
+
+```
+// Interpreter 的结构
+type Interpreter struct {
+	evm      *EVM
+	cfg      Config // Interpreter 结构中持有一个 Config
+	gasTable params.GasTable
+	intPool  *intPool
+
+	readOnly   bool   // Whether to throw on stateful modifications
+	returnData []byte // Last CALL's return data for subsequent reuse
+}
+
+// Config 是 Interpreter 的配置选项
+type Config struct {
+	// Debug enabled debugging Interpreter options（启用调试解释器选项）
+	Debug bool
+	// Tracer is the op code logger
+	Tracer Tracer
+	// NoRecursion disabled Interpreter call, callcode,
+	// delegate call and create.
+	NoRecursion bool
+	// Enable recording of SHA3/keccak preimages
+	EnablePreimageRecording bool
+	// JumpTable contains the EVM instruction table. This
+	// may be left uninitialised and will be set to the default
+	// table.
+        // JumpTable 包含EVM指令表。这可能是未初始化的，并且将被设置为默认表。
+	JumpTable [256]operation // 包括256个operation对象在内的数组JumpTable
+}
+
+```
+
+__每个 operation 对象正对应一个已定义的虚拟机指令__ ，它所含有的四个函数变量 execute, gasCost, validateStack, memorySize 提供了这个虚拟机指令所代表的所有操作。每个指令长度1byte， __Contract对象的成员变量Code类型为 []byte，就是这些虚拟机指令的任意集合__ 。operation对象的函数操作，主要会用到Stack，Memory, IntPool 这几个自定义的数据结构。
+
 
 ### Run函数
 
