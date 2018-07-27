@@ -41,6 +41,17 @@ type Config struct {
 __每个 operation 对象正对应一个已定义的虚拟机指令__ ，它所含有的四个函数变量 execute, gasCost, validateStack, memorySize 提供了这个虚拟机指令所代表的所有操作。每个指令长度1byte， __Contract对象的成员变量Code类型为 []byte，就是这些虚拟机指令的任意集合__ 。operation对象的函数操作，主要会用到Stack，Memory, IntPool 这几个自定义的数据结构。
 
 
+operation在操作过程中，会需要几个数据结构： Stack，实现了标准容器 -栈的行为；Memory，一个字节数组，可表示线性排列的任意数据;还有一个intPool，提供对big.Int数据的存储和读取。
+
+已定义的operation，种类很丰富，包括：
+
+算术运算：ADD，MUL，SUB，DIV，SDIV，MOD，SMOD，EXP...；
+逻辑运算：LT，GT，EQ，ISZERO，AND，XOR，OR，NOT...；
+业务功能：SHA3，ADDRESS，BALANCE，ORIGIN，CALLER，GASPRICE，LOG1，LOG2...等等
+
+LOGn指令操作，它用来创建n个Log对象，这里n最大是4。还记得Log在何时被用到么？每个交易(Transaction,tx)执行完成后，会创建一个Receipt对象用来记录这个交易的执行结果。Receipt携带一个Log数组，用来记录tx操作过程中的所有变动细节，而这些Log，正是通过合适的LOGn指令-即合约指令数组(Contract.Code)中的单个byte，在其对应的operation里被创建出来的。每个新创建的Log对象被缓存在StateDB中的相对应的stateObject里，待需要时从StateDB中读取。
+
+
 ### Run函数
 
 ```
