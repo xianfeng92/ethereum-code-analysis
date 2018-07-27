@@ -14,11 +14,17 @@
 
 * [EVM](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/evm.md)
 
-* [interpreter](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/interpreter.md)
+* [Interpreter](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/interpreter.md)
 
-* [ethDB](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/ethDB.md)
+* [EthDB](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/ethDB.md)
 
-* [gas](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/gas.md)
+* [Gas](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/gas.md)
+
+* Miner
+
+* Woker
+
+* Agent
 
 
 ----------------------------------------
