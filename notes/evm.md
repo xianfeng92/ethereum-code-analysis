@@ -1,11 +1,67 @@
 ## EVM
 
+*  core/vm/[evm.go](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/evm.go)
+
+-----------------------------------------------------
+## 合约预编译
+
+如果待执行的Contract对象恰好属于一组 __预编译的合约集合__-此时以指令地址CodeAddr为匹配项-那么它可以直接运行；没有经过预编译的Contract，才会由Interpreter解释执行。这里的"预编译"，可理解为不需要编译(解释)指令(Code)。预编译的合约，其逻辑全部固定且已知，所以执行中不再需要Code，仅需Input即可。
+```
+// run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
+func run(evm *EVM, contract *Contract, input []byte) ([]byte, error) {
+	if contract.CodeAddr != nil {
+		precompiles := PrecompiledContractsHomestead
+		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
+			precompiles = PrecompiledContractsByzantium
+		}
+		if p := precompiles[*contract.CodeAddr]; p != nil {
+			return RunPrecompiledContract(p, input, contract)
+		}
+	}
+	return evm.interpreter.Run(contract, input)
+}
+
+// PrecompiledContractsHomestead contains the default set of pre-compiled Ethereum
+// contracts used in the Frontier and Homestead releases.
+var PrecompiledContractsHomestead = map[common.Address]PrecompiledContract{ // 默认的预编译合约
+	common.BytesToAddress([]byte{1}): &ecrecover{},
+	common.BytesToAddress([]byte{2}): &sha256hash{},
+	common.BytesToAddress([]byte{3}): &ripemd160hash{},
+	common.BytesToAddress([]byte{4}): &dataCopy{},
+}
+
+// RunPrecompiledContract runs and evaluates the output of a precompiled contract.
+func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract) (ret []byte, err error) {
+	gas := p.RequiredGas(input) // 计算预编译合约所需 gas
+	if contract.UseGas(gas) {
+		return p.Run(input)
+	}
+	return nil, ErrOutOfGas
+}
+
+// Precompiled contract gas prices 具体预编译合约的 gas
+
+EcrecoverGas            uint64 = 3000   // Elliptic curve sender recovery gas price
+Sha256BaseGas           uint64 = 60     // Base price for a SHA256 operation
+Sha256PerWordGas        uint64 = 12     // Per-word price for a SHA256 operation
+Ripemd160BaseGas        uint64 = 600    // Base price for a RIPEMD160 operation
+
+```
+
+当调用的是预编译合约 sha256hash， 其 run 方法如下：
+
+```
+func (c *sha256hash) Run(input []byte) ([]byte, error) {
+	h := sha256.Sum256(input)
+	return h[:], nil
+}
+```
+
+----------------------------------------------------
 
 ### Create
 
 #### 合约创建 （当 tx 的 to == nil）：
-
-*  core/vm/[evm.go](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/evm.go)
 
 ```
 // Create creates a new contract using code as deployment code.
@@ -207,6 +263,8 @@ func Transfer(db vm.StateDB, sender, recipient common.Address, amount *big.Int) 
 }
 
 ```
+
+----------------------------------------------------
 
 ## 小结
 
