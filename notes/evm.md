@@ -223,7 +223,11 @@ evm.go中的Call()和Create()函数：
 
 Call() 有一个入参input类型为[]byte，而Create()有一个入参code类型同样为[]byte，没有入参input. 这两个[]byte都是Transaction对象tx的成员变量Payload！调用EVM.Create()或Call()的入口在StateTransition.TransitionDb()中， 当tx.Recipent为空时，tx.data.Payload 被当作所创建Contract的Code(创建合约)；当tx.Recipient 不为空时，tx.data.Payload 被当作Contract的Input（合约调用）。
 
-关于[run](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/interpreter.md)
+---------------------------------------------------------------------------------------------------------------
+
+## 补充
+
+关于[run函数](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/interpreter.md)
 
 
 
