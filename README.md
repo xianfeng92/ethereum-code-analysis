@@ -20,6 +20,8 @@
 
 * [Gas](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/gas.md)
 
+--------------------------------------------------------------------
+
 * Miner
 
 * Woker
