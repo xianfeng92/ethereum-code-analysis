@@ -2,14 +2,7 @@
 ----------------------------------------
 源码的阅读, 顺便带着学习golang和数据结构
 
-----------------------------------------
-先来一张以太坊整体的架构图
 ---------------------------------------
-
-![](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/eth.png)
-
-
-----------------------------------------
 
 ## 第一版---待补充
 
@@ -26,3 +19,12 @@
 * [ethDB](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/ethDB.md)
 
 * [gas](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/gas.md)
+
+
+----------------------------------------
+
+
+![以太坊整体的架构图](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/eth.png)
+
+
+----------------------------------------
