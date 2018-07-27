@@ -3,7 +3,7 @@
 
 Contract的执行:[interpreter](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/interpreter.go)
 
-### Run
+### Run函数
 
 ```
 // Run loops and evaluates the contract's code with the given input data and returns
@@ -179,5 +179,10 @@ func makeGasLog(n uint64) gasFunc {
 
 ```
 
-关于每个[operation](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/jump_table.go)消耗的gas。
+
+------------------------------------------------------
+
+## 补充
+
+[operation的gas消耗](https://github.com/xianfeng92/go-ethereum/blob/master/core/vm/jump_table.go)消耗的gas。
 
