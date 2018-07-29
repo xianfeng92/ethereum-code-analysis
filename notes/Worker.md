@@ -167,7 +167,7 @@ worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadC
 worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
 go worker.update()
 // 单独开启一个线程，监听 NewTxsEvent ChainHeadEvent ChainSideEvent
-// 监听中， 如果有新的区块产生，则会重新 commitNewWork ，然后 push 给 Agent 进行 mining
+// 监听中， 如果有新的区块产生，则会重新 commitNewWork ，然后 push 一个 work 给 Agent 进行 mining
 
 go worker.wait() // 等待 Agent 的 mining 结果，如果成功挖出一个Block会将其写入数据库，并进行广播
 worker.commitNewWork() // 组装一个 work， 并 push 给 Agent 进行 mining
@@ -273,13 +273,16 @@ self.possibleUncles[ev.Block.Hash()] = ev.Block
 self.uncleMu.Unlock()
 
 // Handle NewTxsEvent 监听新 tx
+// txpool 每 add 一个 tx，就会通知 Send(NewTxsEvent)
 case ev := <-self.txsCh:
 // Apply transactions to the pending state if we're not mining.
 // 如果不进行挖掘（mining），则将处理 transactions ，将其变为 pending 状态
 // Note all transactions received may not be continuous with transactions
 // already included in the current mining block. These transactions will
 // be automatically eliminated.
-if atomic.LoadInt32(&self.mining) == 0 { // 判断是否在 mining 中，如果不在 mining 中则处理新的tx
+if atomic.LoadInt32(&self.mining) == 0 {
+// 判断是否在 mining 中。
+// 组装一个 work
 self.currentMu.Lock() // 互斥的操作
 txs := make(map[common.Address]types.Transactions)
 for _, tx := range ev.Txs {
@@ -471,7 +474,7 @@ if err != nil {
 log.Error("Failed to fetch pending transactions", "err", err)
 return
 }
-txs := types.NewTransactionsByPriceAndNonce(self.current.signer, pending)
+txs := types.NewTransactionsByPriceAndNonce(self.current.signer, pending) // 取出 tx_pool 中状态为 pending 的 tx
 work.commitTransactions(self.mux, txs, self.chain, self.coinbase) // 处理 txs
 
 // compute uncles for the new block.
@@ -631,11 +634,11 @@ if err != nil {
 env.state.RevertToSnapshot(snap)
 return err, nil
 }
+// 将 tx 以及其执行完的 receipt， 存储到 work 中
 env.txs = append(env.txs, tx)
 env.receipts = append(env.receipts, receipt)
 
 return nil, receipt.Logs
 }
-
 ```
 

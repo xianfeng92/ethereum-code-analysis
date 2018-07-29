@@ -58,10 +58,10 @@ worker *worker
 coinbase common.Address
 mining   int32 // 是否在 mining 中
 eth      Backend
-engine   consensus.Engine // 共识算法的接口
+engine   consensus.Engine
 
-canStart    int32 // 表示能否进行 mining
-shouldStart int32 // 同步后是否可以 mining
+canStart    int32 // 表示 能否进行mining
+shouldStart int32 // should start indicates whether we should start after sync
 }
 
 func New(eth Backend, config *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine) *Miner {
@@ -69,12 +69,13 @@ miner := &Miner{
 eth:      eth,
 mux:      mux,
 engine:   engine,
-// 构建 worker 对象, 调用 worker.update()
+// 在创建 worker 时， 会调用 worker.commitNewWork()，即构建一个 block header，获取当前的最新 block 作为其 parent
+// 利用 header 和 parent 生成一个 work，在 work 中记录 从 tx_pool 中获取 pending 状态的 tx 以及对应的recepits
 worker:   newWorker(config, engine, common.Address{}, eth, mux),
-canStart: 1,// 可以进行 mining
+canStart: 1,// 可以开始 mining
 }
 miner.Register(NewCpuAgent(eth.BlockChain(), engine))
-go miner.update() // 一个单独线程去运行miner.Update()函数
+go miner.update() // 一个单独线程去运行miner.Update()函数， 当一个节点更新成最新状态时，就 start Mining
 
 return miner
 }
@@ -112,7 +113,6 @@ break out
 }
 }
 
-// miner.Start() 其实调用的是 miner.worker.start()
 func (self *Miner) Start(coinbase common.Address) {
 atomic.StoreInt32(&self.shouldStart, 1)
 self.SetEtherbase(coinbase)
@@ -127,7 +127,6 @@ self.worker.start()
 self.worker.commitNewWork()
 }
 
-// 其实调用的是 miner.worker.stop()
 func (self *Miner) Stop() {
 self.worker.stop()
 atomic.StoreInt32(&self.mining, 0)

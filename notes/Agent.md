@@ -82,11 +82,9 @@ return // agent already started
 go self.update()
 }
 
-//update函数会一直监听Work对象，如果收到由worker.commitNewWork()结束后发出Work对象
-//就启动mine()函数；如果收到停止(mine)的消息，就退出一切相关操作。
 func (self *CpuAgent) update() {
 out:
-for {
+for { // 一直在监听 worker 对象是否 push 一个 work
 select {
 case work := <-self.workCh: // // 监听 Work ，是否有组装好的区块
 self.mu.Lock()
@@ -108,8 +106,6 @@ break out
 }
 }
 
-// CpuAgent.mine()会直接调用Engine.Seal()函数，利用Engine实现体的共识算法对传入的Block进行最终的授权
-// 如果成功，就将Block同Work一起通过channel发还给worker，那边worker.wait()会接收并处理
 func (self *CpuAgent) mine(work *Work, stop <-chan struct{}) { // 找nonce值，做 pow ，尝试封装一个 block
 if result, err := self.engine.Seal(self.chain, work.Block, stop); result != nil {
 log.Info("Successfully sealed new block", "number", result.Number(), "hash", result.Hash())
@@ -128,5 +124,6 @@ return int64(pow.Hashrate())
 }
 return 0
 }
+
 ```
 
