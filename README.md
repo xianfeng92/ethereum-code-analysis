@@ -22,11 +22,13 @@
 
 --------------------------------------------------------------------
 
-* Miner
+* [Miner](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Miner.md)
 
-* Woker
+* [Woker](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Worker.md)
 
-* Agent
+* [Agent](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Agent.md)
+
+* txPool
 
 
 ----------------------------------------
