@@ -2,10 +2,11 @@
 
 * miner/[worker](https://github.com/xianfeng92/go-ethereum/blob/master/miner/worker.go)
 
-worker 主要关注worker.updater()和wait()
+
+worker 主要和Agent 互动,组装区块给Agent,并接收Agent挖出的Block.
 
 ```
-/// Copyright 2015 The go-ethereum Authors
+// Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -164,10 +165,12 @@ worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh) // 当 eth.TxPoo
 // Subscribe events for blockchain 订阅区块链的相关事件
 worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
-go worker.update() // 单独开启一个线程
+go worker.update()
+// 单独开启一个线程，监听 NewTxsEvent ChainHeadEvent ChainSideEvent
+// 监听中， 如果有新的区块产生，则会重新 commitNewWork ，然后 push 给 Agent 进行 mining
 
-go worker.wait()
-worker.commitNewWork()
+go worker.wait() // 等待 Agent 的 mining 结果，如果成功挖出一个Block会将其写入数据库，并进行广播
+worker.commitNewWork() // 组装一个 work， 并 push 给 Agent 进行 mining
 
 return worker
 }
@@ -260,6 +263,7 @@ for {
 select {
 // Handle ChainHeadEvent 监听是否有区块挖出
 case <-self.chainHeadCh:
+// 如果有新区块挖出，则准备新的 work，并开始mining
 self.commitNewWork()
 
 // Handle ChainSideEvent 监听是否有叔区块
@@ -408,10 +412,10 @@ self.currentMu.Lock()
 defer self.currentMu.Unlock()
 
 tstart := time.Now()
-parent := self.chain.CurrentBlock()
+parent := self.chain.CurrentBlock() // 获取当前区块链中的头区块
 
 tstamp := tstart.Unix() // 计算时间戳
-if parent.Time().Cmp(new(big.Int).SetInt64(tstamp)) >= 0 {
+if parent.Time().Cmp(new(big.Int).SetInt64(tstamp)) >= 0 { // 确保时间戳必须大于parent
 tstamp = parent.Time().Int64() + 1
 }
 // this will ensure we're not going off too far in the future
@@ -422,12 +426,13 @@ time.Sleep(wait)
 }
 
 num := parent.Number()
-header := &types.Header{
-ParentHash: parent.Hash(),
-Number:     num.Add(num, common.Big1),
+header := &types.Header{ // 封装区块头
+ParentHash: parent.Hash(), // 父区块的hash
+Number:     num.Add(num, common.Big1),// 区块的num
+// CalcGasLimit computes the gas limit of the next block after parent
 GasLimit:   core.CalcGasLimit(parent),
 Extra:      self.extra,
-Time:       big.NewInt(tstamp),
+Time:       big.NewInt(tstamp), // 区块的时间戳
 }
 // Only set the coinbase if we are mining (avoid spurious block rewards)
 if atomic.LoadInt32(&self.mining) == 1 {
@@ -451,7 +456,7 @@ header.Extra = []byte{} // If miner opposes, don't let it use the reserved extra
 }
 }
 // Could potentially happen if starting to mine in an odd state.
-err := self.makeCurrent(parent, header)
+err := self.makeCurrent(parent, header) // 根据 parent 和 header 创建一个 work 对象
 if err != nil {
 log.Error("Failed to create mining context", "err", err)
 return
@@ -461,13 +466,13 @@ work := self.current
 if self.config.DAOForkSupport && self.config.DAOForkBlock != nil && self.config.DAOForkBlock.Cmp(header.Number) == 0 {
 misc.ApplyDAOHardFork(work.state)
 }
-pending, err := self.eth.TxPool().Pending()
+pending, err := self.eth.TxPool().Pending() // 取出 TxPool 中 pending 的 tx
 if err != nil {
 log.Error("Failed to fetch pending transactions", "err", err)
 return
 }
 txs := types.NewTransactionsByPriceAndNonce(self.current.signer, pending)
-work.commitTransactions(self.mux, txs, self.chain, self.coinbase)
+work.commitTransactions(self.mux, txs, self.chain, self.coinbase) // 处理 txs
 
 // compute uncles for the new block.
 var (
@@ -626,8 +631,8 @@ if err != nil {
 env.state.RevertToSnapshot(snap)
 return err, nil
 }
-env.txs = append(env.txs, tx) // 更新 worker 的txs
-env.receipts = append(env.receipts, receipt) // 更新 worker 的 receipts
+env.txs = append(env.txs, tx)
+env.receipts = append(env.receipts, receipt)
 
 return nil, receipt.Logs
 }
