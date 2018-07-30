@@ -28,10 +28,20 @@
 
 * [Agent](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Agent.md)
 
-* txPool
+* TxPool
 
 
 ----------------------------------------
+
+* Consensus
+
+* Sealer
+
+* Ethash
+
+* Algorithm
+
+----------------------------------------------------
 
 
 ![以太坊整体的架构图](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/eth.png)
