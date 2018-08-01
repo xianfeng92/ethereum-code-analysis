@@ -37,13 +37,13 @@
 
 ----------------------------------------
 
-* Consensus
+* [Consensus](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/consensus.md)
 
-* Sealer
+* [Sealer](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/sealer.md)
 
 * Ethash
 
-* Algorithm
+* [Algorithm](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Algorithm.md)
 
 ----------------------------------------------------
 
