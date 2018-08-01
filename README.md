@@ -22,6 +22,11 @@
 
 ## 源码阅读记录
 
+
+源码阅读部分主要参考：[teaspring的技术专栏](https://blog.csdn.net/teaspring)
+
+---------------------------------------------------------------------
+
 * [Block](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Block.md)
 
 * [Transaction](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Transaction.md)
