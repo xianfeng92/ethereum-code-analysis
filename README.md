@@ -58,7 +58,7 @@
 
 * [Sealer](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/sealer.md)
 
-* Ethash
+* [Ethash](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/ethash.md)
 
 * [Algorithm](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Algorithm.md)
 
