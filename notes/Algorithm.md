@@ -156,7 +156,7 @@ func generateDatasetItem(cache []uint32, index uint32, keccak512 hasher) []byte 
 
 lookup 主要是根据其参数　index 来从　dataset　中取数据，那么　dataset　的数据如何产生的呢？
 
-来看看　[dataset]()
+来看看　[dataset](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Ethash.md)
 
 
 ```
