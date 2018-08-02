@@ -4,9 +4,9 @@
 
 dataset 入参为　block，每30000个 block 为一个 epoch。
 
-重点在　ethash.datasets.get　函数，来看看 [ethash.datasets.get]()
+重点在　ethash.datasets.get　函数，来看看 ethash.datasets.get
 
-获取到　current　以后会调用其　generate，　再来看看　[generate]()
+获取到　current　以后会调用其　generate，　再来看看　generate
 
 
 ```
@@ -62,7 +62,7 @@ func (lru *lru) get(epoch uint64) (item, future interface{}) {
 
 ## generate
 
-generate　主要调用　generateCache　来生成　cache，再来看看　[generateCache]()
+generate　主要调用　generateCache　来生成　cache，再来看看　[generateCache](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Algorithm.md)
 
 不管　generateCache　使用多复杂多牛逼的算法（懒得去理解～费劲），我们其实只需要知道　catch 是和 epoch 对应的。一个特定的　epoch 对应一个特定的　catch。
 
