@@ -78,7 +78,6 @@ func (ethash *Ethash) Seal(chain consensus.ChainReader, block *types.Block, stop
 
 ```
 
-
 ## mine
 
 入参@id是线程编号，用来发送log告知上层；函数内部首先定义一组局部变量，包括之后调用hashimotoFull()时传入的hash、nonce、巨大的辅助数组dataset，以及结果比较的target；然后是一个无限循环，每次调用 hashimotoFull()进行一系列复杂运算，一旦它的返回值符合条件，就复制Header对象(深度拷贝)，并赋值Nonce、MixDigest属性，返回经过授权的区块。注意到在每次循环运算时，nonce还会自增+1，使得每次循环中的计算都各不相同。

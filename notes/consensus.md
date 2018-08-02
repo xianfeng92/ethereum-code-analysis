@@ -47,7 +47,6 @@ type Engine interface {
 
 ------------------------------
 
-
 * etash/[consensus](https://github.com/xianfeng92/go-ethereum/blob/master/consensus/ethash/consensus.go)
 
 ## VerifyHeader
@@ -144,9 +143,9 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 
 ```
 
-##
+##　Prepare
 
-Prepare 函数主要为 header 的 Difficulty 熟悉赋值，为后面的区块的Seal做准备。
+Prepare 函数主要为 header 的 Difficulty 属性赋值，为后面的区块的Seal做准备。
 
 ```
 func (ethash *Ethash) Prepare(chain consensus.ChainReader, header *types.Header) error {
@@ -193,6 +192,12 @@ VerifySeal　检查 Seal 出来的　header　是否满足　pow 的要求，具
 
 为什么可以重新计算？
 
+关于　[hashimotoLight]() 其主要还是　[hashimoto]()　来计算　digest　和　result
+
+这里区块 hash 、nonce　以及 size　都是已知，主要还是寻找计算出正确　nonce 时的　lookup，此时最关键的就是如何恢复当时的　lookup 环境，找到　digest
+
+其实，还是要理清这[hashimoto]()部分，狗日的，这部分逃是逃不掉的了。
+
 ```
 // 检查给定的块是否满足PoW难度要求
 func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
@@ -236,6 +241,50 @@ func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Head
 	return nil
 }
 
+```
+
+## Finalize
+
+```
+// Finalize implements consensus.Engine, accumulating the block and uncle rewards,
+// setting the final state and assembling the block.
+// 
+func (ethash *Ethash) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+	// 计算区块和叔区块的奖励
+	accumulateRewards(chain.Config(), state, header, uncles)
+　　　　　　　　// IntermediateRoot 会将当前状态提交给本地数据库，返回一个区块的根hash
+	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+
+	// 创建一个新区块
+	return types.NewBlock(header, txs, uncles, receipts), nil
+}
+```
+
+Rewards　的具体计算方法如下：新区块的奖励（５ETH） + 叔区块的奖励
+
+```
+func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+	// Select the correct block reward based on chain progression
+	blockReward := FrontierBlockReward
+	if config.IsByzantium(header.Number) {
+		blockReward = ByzantiumBlockReward
+	}
+	// Accumulate the rewards for the miner and any included uncles
+	reward := new(big.Int).Set(blockReward)
+	r := new(big.Int)
+        // 一个新区块最多能有两个叔区块
+	for _, uncle := range uncles {
+		r.Add(uncle.Number, big8)
+		r.Sub(r, header.Number)
+		r.Mul(r, blockReward)
+		r.Div(r, big8)
+		state.AddBalance(uncle.Coinbase, r)
+
+		r.Div(blockReward, big32)
+		reward.Add(reward, r)
+	}
+	state.AddBalance(header.Coinbase, reward)
+}
 ```
 
 
