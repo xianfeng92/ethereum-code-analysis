@@ -16,6 +16,8 @@
 
 ## 节点通信
 
+## 交易池
+
 ## 数据存储
 
 ## 共识过程
@@ -51,7 +53,7 @@
 
 * [Agent](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Agent.md)
 
-* TxPool
+* [TxPool](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/notes/Tx_Pool.md)
 
 
 ----------------------------------------
