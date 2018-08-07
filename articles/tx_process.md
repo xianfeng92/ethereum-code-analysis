@@ -50,16 +50,16 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 }
 
 ```
-其实我们在MetaMask 中输入的信息是用来初始化一个 tx, 其中 TRANSACTION DATA 会赋值给Payload, V、R、S是MetaMask对 tx 发起者的Address 所做的签名.
+其实我们在MetaMask 中输入的信息是用来初始化一个 tx, 其中 TRANSACTION DATA 会赋值给Payload, V、R、S是MetaMask对 tx 发起者的Address 所做的签名.使用signer.Sender(tx)可对txdata 的V、R 、S三个数进行解密得到这个交易的签名公钥，即发送方的 address 。发送方的地址在交易数据中是没有的，这主要是为了防止交易数据被篡改，任何交易数据的变化后通过signer.Sender方法都不能得到正确的地址。
 
 以太坊中, Downloader 专门从网络获取 tx 以及 Block.  当一个节点获取到 tx 时, 会将其加入到 tx_pool. tx_pool 会验证这笔 tx, 通过验证并且nonce值满足要求即会将其加入到 pending 中.  矿工在挖矿前都会处理 tx_pool中处理pending状态的 tx.
 
 
 ## StateProcessor
 
-执行tx的入口函数是 StateProcessor 的Process()函数，其实现代码如下：
-
 * /core/[state_processor.go](https://github.com/xianfeng92/go-ethereum/blob/master/core/state_processor.go)
+
+执行tx的入口函数是 StateProcessor 的Process()函数，其会遍历block的所有交易。实现代码如下：
 
 ```
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
@@ -68,7 +68,7 @@ receipts types.Receipts // 交易执行后的收据
 usedGas  = new(uint64)
 header   = block.Header()
 allLogs  []*types.Log
-gp       = new(GasPool).AddGas(block.GasLimit()) // GasPol 跟踪在Block 中执行 tx 期间可用的 gas， 即一个 Block 中最多可以消耗多少gas
+gp       = new(GasPool).AddGas(block.GasLimit()) // GasPol 跟踪在Block 中执行 tx 期间可用的 gas， 即一个 Block 中最多可以消耗多少　gas
 )
 // Mutate the the block and state according to any hard-fork specs
 if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
@@ -111,39 +111,8 @@ GasUsed         uint64         `json:"gasUsed" gencodec:"required"`
 }
 ```
 
-PostState 存储了创建该Receipt对象时，整个Block内所有“帐户”的状态，即当时所在Block里所有　stateObject　对象的 RLP Hash值；Receipt 中有一个Log类型的数组，其中每一个Log对象记录了Tx中一小步的操作。这里Bloom，被用以验证某个给定的Log是否处于Receipt已有的Log数组中。
+PostState 存储了创建该Receipt对象时，整个Block内所有“帐户”的状态，即当时所在Block里所有　stateObject　对象的 RLP Hash值；Receipt 中有一个Log类型的数组，其中每一个Log对象记录了Tx中一小步的操作。这里Bloom，被用以验证某个给定的Log是否处于Receipt已有的Log数组中。每一个tx的执行结果，__由一个Receipt对象来表示__；更具体一点，是由一组Log对象来记录。这个Log数组很重要，比如在不同Ethereum节点(Node)的相互同步过程中，待同步区块的Log数组有助于验证同步中收到的block是否正确和完整，所以会被单独同步(传输)。
 
-Log对象记录了 Tx 中一小步的操作，其结构如下：
-```
-// Log 表示合约日志事件，这些事件由LOG操作码生成并由节点存储/索引。
-type Log struct {
-// Consensus fields:
-// address of the contract that generated the event
-Address common.Address `json:"address" gencodec:"required"`
-// list of topics provided by the contract.
-Topics []common.Hash `json:"topics" gencodec:"required"`
-// supplied by the contract, usually ABI-encoded
-Data []byte `json:"data" gencodec:"required"`
-
-// Derived fields. These fields are filled in by the node
-// but not secured by consensus.
-// block in which the transaction was included
-BlockNumber uint64 `json:"blockNumber"`
-// hash of the transaction
-TxHash common.Hash `json:"transactionHash" gencodec:"required"`
-// index of the transaction in the block
-TxIndex uint `json:"transactionIndex" gencodec:"required"`
-// hash of the block in which the transaction was included
-BlockHash common.Hash `json:"blockHash"`
-// index of the log in the receipt
-Index uint `json:"logIndex" gencodec:"required"`
-
-// The Removed field is true if this log was reverted due to a chain reorganisation.
-// You must pay attention to this field if you receive logs through a filter query.
-Removed bool `json:"removed"`
-}
-```
-每一个tx的执行结果，__由一个Receipt对象来表示__；更具体一点，是由一组Log对象来记录。这个Log数组很重要，比如在不同Ethereum节点(Node)的相互同步过程中，待同步区块的Log数组有助于验证同步中收到的block是否正确和完整，所以会被单独同步(传输)。
 
 ## ApplyTransaction
 
@@ -215,7 +184,7 @@ msg.from, err = Sender(s, tx)
 return msg, err
 }
 ```
-此时 message 中已经包含一个 tx 所有的信息, 并且已经将交易发起者的address提取出来了.
+此时 message 中已经包含一个 tx 所有的信息, 并且已经将交易发起者的　address　提取出来了.
 
 
 ### 2 evm 执行环境的创建
@@ -388,7 +357,7 @@ evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value) // 转入账户
 // 创建一个合约实例 contract
 contract := NewContract(caller, AccountRef(contractAddr), value, gas)
 // 将编译后的字节码 code 存储到 contract
-contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code) // 初始化一个合约，并设置其 code（指令数组）
+contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code) // 初始化一个合约，并将编译后的字节码 code 设给　contract的Code 属性上
 
 if evm.vmConfig.NoRecursion && evm.depth > 0 {
 return nil, contractAddr, gas, nil
@@ -443,144 +412,6 @@ return ret, contractAddr, contract.Gas, err
 * contract 实例的创建以及将字节码 code 赋值给 contractAddr 
 
 *  Run code, 检查 code 中的 operation是否合法,以及计算和分配code所需要的 memory
-
-```
-// 检查和计算 contract code 中每个 operation 的合法性以及所需消耗的内存
-// 除了 errExecutionReverted, 其余所有由 interpreter 返回的错误都会 revert-and-consume-all-gas
-func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err error) {
-if in.intPool == nil {
-in.intPool = poolOfIntPools.get()
-defer func() {
-poolOfIntPools.put(in.intPool)
-in.intPool = nil
-}()
-}
-
-// Increment the call depth which is restricted to 1024
-in.evm.depth++
-defer func() { in.evm.depth-- }()
-
-// Reset the previous call's return data. It's unimportant to preserve the old buffer
-// as every returning call will return new data anyway.
-in.returnData = nil
-
-// Don't bother with the execution if there's no code.
-if len(contract.Code) == 0 {
-return nil, nil
-}
-
-var (
-op    OpCode        // current opcode
-mem   = NewMemory() // bound memory
-stack = newstack()  // local stack
-// For optimisation reason we're using uint64 as the program counter.
-// It's theoretically possible to go above 2^64. The YP defines the PC
-// to be uint256. Practically much less so feasible.
-pc   = uint64(0) // program counter
-cost uint64
-// copies used by tracer
-pcCopy  uint64 // needed for the deferred Tracer
-gasCopy uint64 // for Tracer to log gas remaining before execution
-logged  bool   // deferred Tracer should ignore already logged steps
-)
-contract.Input = input
-
-// Reclaim the stack as an int pool when the execution stops
-defer func() { in.intPool.put(stack.data...) }()
-
-if in.cfg.Debug {
-defer func() {
-if err != nil {
-if !logged {
-in.cfg.Tracer.CaptureState(in.evm, pcCopy, op, gasCopy, cost, mem, stack, contract, in.evm.depth, err)
-} else {
-in.cfg.Tracer.CaptureFault(in.evm, pcCopy, op, gasCopy, cost, mem, stack, contract, in.evm.depth, err)
-}
-}
-}()
-}
-
-// Interpreter 的主循环,该循环遇到 STOP、RETURN、SELFDESTRUCT 或者发送错误时才会退出
-for atomic.LoadInt32(&in.evm.abort) == 0 {
-if in.cfg.Debug {
-// Capture pre-execution values for tracing.
-logged, pcCopy, gasCopy = false, pc, contract.Gas
-}
-
-// Get the operation from the jump table and validate the stack to ensure there are
-// enough stack items available to perform the operation.
-op = contract.GetOp(pc)
-operation := in.cfg.JumpTable[op]
-// code 中操作符是否合法
-if !operation.valid {
-return nil, fmt.Errorf("invalid opcode 0x%x", int(op))
-}
-// 验证operation的堆栈（大小）
-if err := operation.validateStack(stack); err != nil {
-return nil, err
-}
-// 如果 operation 是有效的， 对其进行写限制
-if err := in.enforceRestrictions(op, operation, stack); err != nil {
-return nil, err
-}
-
-var memorySize uint64
-// calculate the new memory size and expand the memory to fit
-// the operation
-if operation.memorySize != nil {
-memSize, overflow := bigUint64(operation.memorySize(stack))
-if overflow {
-return nil, errGasUintOverflow
-}
-// memory is expanded in words of 32 bytes. Gas
-// is also calculated in words.
-if memorySize, overflow = math.SafeMul(toWordSize(memSize), 32); overflow {
-return nil, errGasUintOverflow
-}
-}
-// consume the gas and return an error if not enough gas is available.
-// cost is explicitly set so that the capture state defer method can get the proper cost
-cost, err = operation.gasCost(in.gasTable, in.evm, contract, stack, mem, memorySize)
-if err != nil || !contract.UseGas(cost) {
-return nil, ErrOutOfGas
-}
-if memorySize > 0 {
-mem.Resize(memorySize)
-}
-
-if in.cfg.Debug {
-in.cfg.Tracer.CaptureState(in.evm, pc, op, gasCopy, cost, mem, stack, contract, in.evm.depth, err)
-logged = true
-}
-
-// execute the operation
-res, err := operation.execute(&pc, in.evm, contract, mem, stack)
-// verifyPool is a build flag. Pool verification makes sure the integrity
-// of the integer pool by comparing values to a default value.
-if verifyPool {
-verifyIntegerPool(in.intPool)
-}
-// if the operation clears the return data (e.g. it has returning data)
-// set the last return to the result of the operation.
-if operation.returns {
-in.returnData = res
-}
-
-switch {
-case err != nil:
-return nil, err
-case operation.reverts:
-return res, errExecutionReverted
-case operation.halts:
-return res, nil
-case !operation.jumps:
-pc++
-}
-}
-return nil, nil
-}
-```
-
 
 * check code 的size , 确保其值小于MaxCodeSize
 
@@ -666,6 +497,150 @@ return ret, contract.Gas, err
 }
 ```
 
+## Run
+
+合约创建和调用都需要执行一个 Run　函数。合约创建时　input == nil,而合约调用时 input != nil。
+
+```
+// 检查和计算 contract code 中每个 operation 的合法性以及所需消耗的内存
+// 除了 errExecutionReverted, 其余所有由 interpreter 返回的错误都会 revert-and-consume-all-gas
+func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err error) {
+if in.intPool == nil {
+in.intPool = poolOfIntPools.get()
+defer func() {
+poolOfIntPools.put(in.intPool)
+in.intPool = nil
+}()
+}
+
+// Increment the call depth which is restricted to 1024
+in.evm.depth++
+defer func() { in.evm.depth-- }()
+
+// Reset the previous call's return data. It's unimportant to preserve the old buffer
+// as every returning call will return new data anyway.
+in.returnData = nil
+
+// Don't bother with the execution if there's no code.
+if len(contract.Code) == 0 {
+return nil, nil
+}
+
+var (
+op    OpCode        // current opcode
+mem   = NewMemory() // bound memory
+stack = newstack()  // local stack
+// For optimisation reason we're using uint64 as the program counter.
+// It's theoretically possible to go above 2^64. The YP defines the PC
+// to be uint256. Practically much less so feasible.
+pc   = uint64(0) // program counter
+cost uint64
+// copies used by tracer
+pcCopy  uint64 // needed for the deferred Tracer
+gasCopy uint64 // for Tracer to log gas remaining before execution
+logged  bool   // deferred Tracer should ignore already logged steps
+)
+contract.Input = input
+
+// Reclaim the stack as an int pool when the execution stops
+defer func() { in.intPool.put(stack.data...) }()
+
+if in.cfg.Debug {
+defer func() {
+if err != nil {
+if !logged {
+in.cfg.Tracer.CaptureState(in.evm, pcCopy, op, gasCopy, cost, mem, stack, contract, in.evm.depth, err)
+} else {
+in.cfg.Tracer.CaptureFault(in.evm, pcCopy, op, gasCopy, cost, mem, stack, contract, in.evm.depth, err)
+}
+}
+}()
+}
+
+// Interpreter 的主循环,该循环遇到 STOP、RETURN、SELFDESTRUCT 或者发送错误时才会退出
+for atomic.LoadInt32(&in.evm.abort) == 0 {
+if in.cfg.Debug {
+// Capture pre-execution values for tracing.
+logged, pcCopy, gasCopy = false, pc, contract.Gas
+}
+
+// Get the operation from the jump table and validate the stack to ensure there are
+// enough stack items available to perform the operation.
+op = contract.GetOp(pc)
+operation := in.cfg.JumpTable[op]
+// code 中操作符是否合法
+if !operation.valid {
+return nil, fmt.Errorf("invalid opcode 0x%x", int(op))
+}
+// 验证operation的堆栈（大小）
+if err := operation.validateStack(stack); err != nil {
+return nil, err
+}
+// 如果 operation 是有效的，对其进行写限制
+if err := in.enforceRestrictions(op, operation, stack); err != nil {
+return nil, err
+}
+
+var memorySize uint64
+// calculate the new memory size and expand the memory to fit
+// the operation
+if operation.memorySize != nil {
+memSize, overflow := bigUint64(operation.memorySize(stack))
+if overflow {
+return nil, errGasUintOverflow
+}
+// memory is expanded in words of 32 bytes. Gas
+// is also calculated in words.
+if memorySize, overflow = math.SafeMul(toWordSize(memSize), 32); overflow {
+return nil, errGasUintOverflow
+}
+}
+// consume the gas and return an error if not enough gas is available.
+// cost is explicitly set so that the capture state defer method can get the proper cost
+cost, err = operation.gasCost(in.gasTable, in.evm, contract, stack, mem, memorySize)
+if err != nil || !contract.UseGas(cost) {
+return nil, ErrOutOfGas
+}
+if memorySize > 0 {
+mem.Resize(memorySize)
+}
+
+if in.cfg.Debug {
+in.cfg.Tracer.CaptureState(in.evm, pc, op, gasCopy, cost, mem, stack, contract, in.evm.depth, err)
+logged = true
+}
+
+// execute the operation
+res, err := operation.execute(&pc, in.evm, contract, mem, stack)
+// verifyPool is a build flag. Pool verification makes sure the integrity
+// of the integer pool by comparing values to a default value.
+if verifyPool {
+verifyIntegerPool(in.intPool)
+}
+// if the operation clears the return data (e.g. it has returning data)
+// set the last return to the result of the operation.
+if operation.returns {
+in.returnData = res
+}
+
+switch {
+case err != nil:
+return nil, err
+case operation.reverts:
+return res, errExecutionReverted
+case operation.halts:
+return res, nil
+case !operation.jumps:
+pc++
+}
+}
+return nil, nil
+}
+```
+
+对于run函数，其正常执行的情况下,只有遇到STOP、RETURN、SELFDESTRUCT这些operation时才会退出主循环（这里走的是　operation.halts　这个 case），所以正常执行情况下返回的是　res, nil　。
+
+
 ##  Gas消耗
 
 在执行 tx 时，会用 IntrinsicGas 函数计算出固定的 gas 消耗， IntrinsicGas源码如下：
@@ -734,7 +709,98 @@ func (self *StateDB) GetRefund() uint64 {
 
 ```
 
-## tx的确认
+# 实例分析
+
+
+## 合约代码
+
+```
+pragma solidity ^0.4.11;
+
+contract Test{
+    uint public c;
+    function add(uint _a, uint _b) public{
+        c = _a+_b;
+    }
+}
+
+```
+
+## 编译后字节码
+
+```
+{
+"linkReferences": {},
+"object": "608060405234801561001057600080fd5b5060e98061001f6000396000f3006080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063771602f714604e578063c3da42b8146082575b600080fd5b348015605957600080fd5b506080600480360381019080803590602001909291908035906020019092919050505060aa565b005b348015608d57600080fd5b50609460b7565b6040518082815260200191505060405180910390f35b8082016000819055505050565b600054815600a165627a7a723058207ae5b6b429a54f4ce1ff635cebe5230c3d8e02ac7435d919579ddb0a5c455fb30029",
+	"opcodes": "PUSH1 0x80 PUSH1 0x40 MSTORE CALLVALUE DUP1 ISZERO PUSH2 0x10 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH1 0xE9 DUP1 PUSH2 0x1F PUSH1 0x0 CODECOPY PUSH1 0x0 RETURN STOP PUSH1 0x80 PUSH1 0x40 MSTORE PUSH1 0x4 CALLDATASIZE LT PUSH1 0x49 JUMPI PUSH1 0x0 CALLDATALOAD PUSH29 0x100000000000000000000000000000000000000000000000000000000 SWAP1 DIV PUSH4 0xFFFFFFFF AND DUP1 PUSH4 0x771602F7 EQ PUSH1 0x4E JUMPI DUP1 PUSH4 0xC3DA42B8 EQ PUSH1 0x82 JUMPI JUMPDEST PUSH1 0x0 DUP1 REVERT JUMPDEST CALLVALUE DUP1 ISZERO PUSH1 0x59 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH1 0x80 PUSH1 0x4 DUP1 CALLDATASIZE SUB DUP2 ADD SWAP1 DUP1 DUP1 CALLDATALOAD SWAP1 PUSH1 0x20 ADD SWAP1 SWAP3 SWAP2 SWAP1 DUP1 CALLDATALOAD SWAP1 PUSH1 0x20 ADD SWAP1 SWAP3 SWAP2 SWAP1 POP POP POP PUSH1 0xAA JUMP JUMPDEST STOP JUMPDEST CALLVALUE DUP1 ISZERO PUSH1 0x8D JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH1 0x94 PUSH1 0xB7 JUMP JUMPDEST PUSH1 0x40 MLOAD DUP1 DUP3 DUP2 MSTORE PUSH1 0x20 ADD SWAP2 POP POP PUSH1 0x40 MLOAD DUP1 SWAP2 SUB SWAP1 RETURN JUMPDEST DUP1 DUP3 ADD PUSH1 0x0 DUP2 SWAP1 SSTORE POP POP POP JUMP JUMPDEST PUSH1 0x0 SLOAD DUP2 JUMP STOP LOG1 PUSH6 0x627A7A723058 KECCAK256 PUSH27 0xE5B6B429A54F4CE1FF635CEBE5230C3D8E02AC7435D919579DDB0A 0x5c GASLIMIT 0x5f 0xb3 STOP 0x29 ",
+	"sourceMap": "26:103:0:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;26:103:0;;;;;;;"
+}
+```
+
+## 合约部署
+
+```
+var testContract = web3.eth.contract([{"constant":false,"inputs":[{"name":"_a","type":"uint256"},{"name":"_b","type":"uint256"}],"name":"add","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"c","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}]);
+var test = testContract.new(
+   {
+     from: web3.eth.accounts[0], 
+     data: '0x608060405234801561001057600080fd5b5060e98061001f6000396000f3006080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063771602f714604e578063c3da42b8146082575b600080fd5b348015605957600080fd5b506080600480360381019080803590602001909291908035906020019092919050505060aa565b005b348015608d57600080fd5b50609460b7565b6040518082815260200191505060405180910390f35b8082016000819055505050565b600054815600a165627a7a723058207ae5b6b429a54f4ce1ff635cebe5230c3d8e02ac7435d919579ddb0a5c455fb30029', 
+     gas: '4700000'
+   }, function (e, contract){
+    console.log(e, contract);
+    if (typeof contract.address !== 'undefined') {
+         console.log('Contract mined! address: ' + contract.address + ' transactionHash: ' + contract.transactionHash);
+    }
+ })
+
+```
+
+## 调用 add
+
+```
+from:0xca35b7d915458ef540ade6068dfe2f44e8fa733c
+to:0x692a70d2e424a56d2c6c27aa97d1a86395877b3a
+gas:3000000
+transaction cost:41896
+execution cost:20240
+hash:0x3f8fa290f644c3294d159a89de8628db4bfc379ffd8213f046e9bc97224a0967
+input:0x771602f700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002
+decoded input :{
+	"uint256 _a": "1",
+	"uint256 _b": "2"
+}
+
+logs:[][]
+value:0 wei
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
