@@ -668,8 +668,8 @@ return ret, contract.Gas, err
 
 ##  Gas消耗
 
-```
 在执行 tx 时，会用 IntrinsicGas 函数计算出固定的 gas 消耗， IntrinsicGas源码如下：
+
 ```
 // IntrinsicGas 计算 message 中携带的 data （tx.data.Payload） 所需付的 gas
 func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error) {
