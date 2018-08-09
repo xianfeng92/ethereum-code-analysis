@@ -47,6 +47,13 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 
 ## StateProcessor
 
+tx 的执行可大致分为内外两层结构：
+
+* 第一层是__虚拟机外__，包括执行前将Transaction类型转化成Message，创建虚拟机(EVM)对象，计算一些Gas消耗，以及执行交易完毕后创建收据(Receipt)对象并返回等；
+
+* 第二层是__虚拟机内__，包括执行转帐，和创建合约并执行合约的指令数组。
+
+
 * /core/[state_processor.go](https://github.com/xianfeng92/go-ethereum/blob/master/core/state_processor.go)
 
 执行tx的入口函数是 StateProcessor 的Process()函数，其会遍历block的所有交易。实现代码如下：
