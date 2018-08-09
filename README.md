@@ -18,6 +18,8 @@
 
 * [tx_process](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/articles/tx_process.md)
 
+* [tx_consensus](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/articles/tx_consensus.md)
+
 ## 节点通信
 
 ## 交易池
