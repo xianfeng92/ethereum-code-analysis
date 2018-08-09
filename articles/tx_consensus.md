@@ -2,7 +2,7 @@
 
 Miner包主要实现了区块的创建以及区块的 mining,该包中主要由miner、agent以及worker组成。
 
-[TX_consensus]()
+[TX_consensus](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/minerStructure.png)
 
 *  miner/[miner](https://github.com/xianfeng92/go-ethereum/tree/master/miner)
 
@@ -89,7 +89,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 }
 ```
 
-[WORKER]()
+[WORKER](https://github.com/xianfeng92/ethereum-code-analysis/blob/master/images/Worker.png)
 
 #### worker.update()
 
